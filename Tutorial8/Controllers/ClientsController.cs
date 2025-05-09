@@ -26,16 +26,37 @@ namespace Tutorial8.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateClient([FromBody] ClientsTripDTO client)
+        public async Task<IActionResult> AddClient([FromBody] ClientDTO client)
         {
-            if (string.IsNullOrEmpty(client.Name) || string.IsNullOrEmpty(client.Surname))
+            if (client.Email == null && client.Name == null)
             {
-                return BadRequest("Name and Surname are blank.");
+                return BadRequest();
             }
+            var result = _clientsService.AddClient(client);
+            return CreatedAtAction(nameof(AddClient), new { }, client);
+        }
 
-            bool result = await _clientsService.CreateClient(client);
+        [HttpPut("{id}/trips/{tripId}")]
+        public async Task<IActionResult> AssignClientToTrip(int id, int trip)
+        {
+            var result = _clientsService.AssignClientToTrip(id, trip);
+            if (result.Result)
+            {
+                return Ok("Client has been assigned");
+            }
+            return BadRequest();
+            
+        }
 
-            return ??;
+        [HttpDelete("{id}/trips/{tripId}")]
+        public async Task<IActionResult> DeleteClientFromTrip(int id, int tripId)
+        {
+            var result = _clientsService.DeleteClientFromTrip(id, tripId);
+            if (result.Result)
+            {
+                return Ok("Client has been deleted from trip");
+            }
+            return BadRequest();
         }
         
     }

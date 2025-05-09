@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Microsoft.CodeAnalysis.Elfie.Extensions;
+using Microsoft.Data.SqlClient;
 using Tutorial8.Models.DTOs;
 
 namespace Tutorial8.Services;
@@ -6,7 +7,7 @@ namespace Tutorial8.Services;
 public class ClientsService : IClientsService
 {
     private readonly string _connectionString =
-        "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=master;Integrated Security=True;";
+        "Data Source=localhost, 1433; User=SA; Password=Patryk123; Initial Catalog=master; Integrated Security=False;Connect Timeout=30;Encrypt=False;Trust Server Certificate=False";
 
     private async Task<List<CountryDTO>> GetCountries(int idT)
     {
@@ -95,22 +96,79 @@ public class ClientsService : IClientsService
 
         return clients;
     }
-    public Task<bool> CreateClient(ClientsTripDTO client)
+
+    public async Task<Task<int>> AddClient(ClientDTO client)
     {
-        string command = "INSERT INTO Client (FirstName, LastName, Email, PhoneNumber, Pesel) VALUES (@FirstName, @LastName, @Email, @PhoneNumber, @Pesel)";
-        
+        string command = "INSERT INTO Client (FirstName, LastName, Email, Telephone, Pesel) VALUES (@FirstName, @LastName, @Email, @PhoneNumber, @Pesel)";
+        string user = "SELECT MAX(Client.IdClient) FROM Client";
         using (SqlConnection conn = new SqlConnection(_connectionString))
         using (SqlCommand cmd = new SqlCommand(command, conn))
+        using (SqlCommand us = new SqlCommand(user, conn))
         {
             cmd.Parameters.AddWithValue("@FirstName", client.Name);
             cmd.Parameters.AddWithValue("@LastName", client.Surname);
             cmd.Parameters.AddWithValue("@Email", client.Email);
-            cmd.Parameters.AddWithValue("@PhoneNumber", client.PhoneNumber);
+            cmd.Parameters.AddWithValue("@PhoneNumber", client.Telephone);
             cmd.Parameters.AddWithValue("@Pesel", client.Pesel);
             conn.Open();
             cmd.ExecuteNonQuery();
+            
+            await conn.OpenAsync();
+            using (var reader = await us.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    int idOrdinal = reader.GetOrdinal("IdClient");
+                    return Task.FromResult(5);
+                }
+            }
         }
+        return Task.FromResult(0);
         
+    }
+
+    public Task<bool> AssignClientToTrip(int id, int trip)
+    {
+        using (SqlConnection conn = new SqlConnection(_connectionString))
+        {
+            conn.Open();
+            var insert = new SqlCommand($@"
+            INSERT INTO Client_Trip (IdClient, IdTrip, RegisteredAt)
+            VALUES (@id, @tripId, @date)", conn);
+            insert.Parameters.AddWithValue("@id", id);
+            insert.Parameters.AddWithValue("@tripId", trip);
+            insert.Parameters.AddWithValue("@date", int.Parse(DateTime.Now.ToString("yyyyMMdd")));
+            insert.ExecuteNonQuery();
+            
+        }
         return Task.FromResult(true);
+    }
+
+    public Task<bool>  DeleteClientFromTrip(int id, int tripId)
+    {
+        using (var con = new SqlConnection(_connectionString))
+            
+        using (var delete = new SqlCommand(@"DELETE FROM Client_Trip WHERE IdClient = @id AND IdTrip = @tripId", con))
+        {
+            con.Open();
+            var tripComm = new SqlCommand("SELECT COUNT(*) FROM Client_Trip WHERE IdTrip = @tripId", con);
+            tripComm.Parameters.AddWithValue("@tripId", tripId);
+            int tripExist = (int)tripComm.ExecuteScalar();
+            if (tripExist == 0)
+                return Task.FromResult(false);
+            var clientComm = new SqlCommand("SELECT COUNT(*) FROM Client_Trip WHERE IdTrip = @tripId", con);
+            clientComm.Parameters.AddWithValue("@tripId", tripId);
+            int clientExist = (int)clientComm.ExecuteScalar();
+            if (clientExist == 0)
+                return Task.FromResult(false);
+            delete.Parameters.AddWithValue("@id", id);
+            delete.Parameters.AddWithValue("@tripId", tripId);
+            
+            var rows = delete.ExecuteNonQuery();
+            if (rows == 0)
+                return Task.FromResult(false);
+        }
+
+        return Task.FromResult(false);;
     }
 }
