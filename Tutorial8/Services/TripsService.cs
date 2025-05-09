@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using System.Data;
+using Microsoft.Data.SqlClient;
 using Tutorial8.Models.DTOs;
 
 namespace Tutorial8.Services;
@@ -11,7 +12,7 @@ public class TripsService : ITripsService
     {
         var trips = new List<TripDTO>();
 
-        string command = "SELECT IdTrip, Name FROM Trip";
+        string command = "SELECT IdTrip, Name, MaxPeople FROM Trip";
         
         using (SqlConnection conn = new SqlConnection(_connectionString))
         using (SqlCommand cmd = new SqlCommand(command, conn))
@@ -27,7 +28,8 @@ public class TripsService : ITripsService
                     {
                         Id = reader.GetInt32(idOrdinal),
                         Name = reader.GetString(1),
-                        Countries = await GetCountries(reader.GetInt32(idOrdinal))
+                        Countries = await GetCountries(reader.GetInt32(idOrdinal)),
+                        MaxPeople = reader.GetInt32(2)
                     });
                 }
             }

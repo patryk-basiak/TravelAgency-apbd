@@ -4,6 +4,7 @@ public class TripDTO
 {
     public int Id { get; set; }
     public string Name { get; set; }
+    public int MaxPeople { get; set; }
     public List<CountryDTO> Countries { get; set; }
 }
 

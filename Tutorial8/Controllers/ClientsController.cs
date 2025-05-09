@@ -33,13 +33,14 @@ namespace Tutorial8.Controllers
                 return BadRequest();
             }
             var result = _clientsService.AddClient(client);
+            client.Id = result.Result;
             return CreatedAtAction(nameof(AddClient), new { }, client);
         }
 
         [HttpPut("{id}/trips/{tripId}")]
-        public async Task<IActionResult> AssignClientToTrip(int id, int trip)
+        public async Task<IActionResult> AssignClientToTrip(int id, int tripId)
         {
-            var result = _clientsService.AssignClientToTrip(id, trip);
+            var result = _clientsService.AssignClientToTrip(id, tripId);
             if (result.Result)
             {
                 return Ok("Client has been assigned");

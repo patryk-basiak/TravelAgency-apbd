@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis.Elfie.Extensions;
+﻿using System.Data;
+using Microsoft.CodeAnalysis.Elfie.Extensions;
 using Microsoft.Data.SqlClient;
 using Tutorial8.Models.DTOs;
 
@@ -97,10 +98,10 @@ public class ClientsService : IClientsService
         return clients;
     }
 
-    public async Task<Task<int>> AddClient(ClientDTO client)
+    public async Task<int> AddClient(ClientDTO client)
     {
         string command = "INSERT INTO Client (FirstName, LastName, Email, Telephone, Pesel) VALUES (@FirstName, @LastName, @Email, @PhoneNumber, @Pesel)";
-        string user = "SELECT MAX(Client.IdClient) FROM Client";
+        string user = "SELECT MAX(IdClient) AS IdClient FROM Client";
         using (SqlConnection conn = new SqlConnection(_connectionString))
         using (SqlCommand cmd = new SqlCommand(command, conn))
         using (SqlCommand us = new SqlCommand(user, conn))
@@ -110,36 +111,46 @@ public class ClientsService : IClientsService
             cmd.Parameters.AddWithValue("@Email", client.Email);
             cmd.Parameters.AddWithValue("@PhoneNumber", client.Telephone);
             cmd.Parameters.AddWithValue("@Pesel", client.Pesel);
-            conn.Open();
-            cmd.ExecuteNonQuery();
             
             await conn.OpenAsync();
+            cmd.ExecuteNonQuery();
             using (var reader = await us.ExecuteReaderAsync())
             {
-                while (await reader.ReadAsync())
+                if (await reader.ReadAsync())
                 {
-                    int idOrdinal = reader.GetOrdinal("IdClient");
-                    return Task.FromResult(5);
+                    return reader.GetInt32(0);
                 }
             }
         }
-        return Task.FromResult(0);
+        return 0;
         
     }
 
     public Task<bool> AssignClientToTrip(int id, int trip)
     {
+        Console.WriteLine(trip);
         using (SqlConnection conn = new SqlConnection(_connectionString))
         {
             conn.Open();
-            var insert = new SqlCommand($@"
+
+            var checkClient = new SqlCommand("SELECT COUNT(*) FROM Client WHERE IdClient = @id", conn);
+            checkClient.Parameters.AddWithValue("@id", id);
+            if ((int)checkClient.ExecuteScalar() == 0)
+                return Task.FromResult(false);
+            
+            var checkTrip = new SqlCommand("SELECT MaxPeople FROM Trip WHERE IdTrip = @tripId", conn);
+            checkTrip.Parameters.AddWithValue("@tripId", trip);
+            var maxPeople = checkTrip.ExecuteScalar();
+            if (maxPeople == null)
+                return Task.FromResult(false);
+
+            var insert = new SqlCommand(@"
             INSERT INTO Client_Trip (IdClient, IdTrip, RegisteredAt)
             VALUES (@id, @tripId, @date)", conn);
             insert.Parameters.AddWithValue("@id", id);
             insert.Parameters.AddWithValue("@tripId", trip);
             insert.Parameters.AddWithValue("@date", int.Parse(DateTime.Now.ToString("yyyyMMdd")));
             insert.ExecuteNonQuery();
-            
         }
         return Task.FromResult(true);
     }
